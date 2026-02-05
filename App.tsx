@@ -508,6 +508,15 @@ function App() {
                el.classList.remove('text-blue-200');
                el.classList.remove('font-bold');
              });
+
+             // Remove scrollbars and resize handles for export
+             const scrollables = clonedNode.querySelectorAll('.export-no-scroll');
+             scrollables.forEach((el) => {
+                if (el instanceof HTMLElement) {
+                    el.style.overflow = 'hidden';
+                    el.style.resize = 'none';
+                }
+             });
            }
         });
         saveAs(dataUrl, fileName);
@@ -649,7 +658,8 @@ function App() {
                     {/* Column Content */}
                     <div className="flex-1 min-w-0 flex flex-col relative group/col h-full">
                         {/* Column Header */}
-                        <div className="mb-4 relative">
+                        {/* Added flex justify-center to center the title */}
+                        <div className="mb-4 relative flex justify-center">
                             <div className="inline-block relative">
                                 <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-transparent transform -skew-x-12 rounded-sm" />
                                 <h2 className="relative px-8 py-2 text-2xl font-bold text-[#446ba6] border-b-2 border-[#446ba6]">
@@ -687,18 +697,7 @@ function App() {
                                         isOverridden={isSectionOverridden}
                                       />
                                     </div>
-                                    
-                                    <div 
-                                      className="bg-white rounded-full p-1 cursor-pointer text-red-500 hover:bg-red-50 opacity-0 group-hover/section:opacity-100 transition-all shadow-sm flex items-center justify-center no-export"
-                                      style={{ width: 20, height: 20 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteSection(column.id, section.id);
-                                      }}
-                                      title="Delete Group"
-                                    >
-                                      <Icons.Trash size={12} />
-                                    </div>
+                                    {/* Removed Group Delete Button */}
                                     </div>
 
                                     {/* Action Buttons (Layout Toggle) - Always visible now */}
@@ -755,8 +754,8 @@ function App() {
                                         <div key={category.id + '-' + effectiveMode} 
                                             className={`
                                             border border-blue-200 rounded flex flex-col group/card shadow-sm hover:shadow-md transition-shadow bg-white relative
-                                            resize-both overflow-auto min-w-[200px] min-h-[100px]
-                                            ${isSingle ? 'w-full' : 'w-[calc(50%-0.5rem)]'}
+                                            resize-both overflow-auto min-w-[140px] min-h-[100px] export-no-scroll
+                                            ${isSingle ? 'w-full' : 'w-[calc(50%-0.6rem)]'}
                                         `}>
                                             {/* Category Header */}
                                             <div className="bg-[#618cc7] text-white px-3 py-2 text-sm font-medium text-center relative h-auto flex items-center justify-center gap-1 leading-snug break-words">
@@ -788,7 +787,7 @@ function App() {
 
                                                     return (
                                                     <div key={item.id} 
-                                                        className="border border-gray-100 rounded px-2 py-1.5 text-xs text-gray-700 bg-gray-50 flex items-start justify-between gap-1 group/item hover:border-blue-200 resize-both overflow-auto min-h-[32px] w-full"
+                                                        className="border border-gray-100 rounded px-2 py-1.5 text-xs text-gray-700 bg-gray-50 flex items-start justify-between gap-1 group/item hover:border-blue-200 resize-both overflow-auto min-h-[32px] w-full export-no-scroll"
                                                     >
                                                       <div className="flex-1 min-w-0 text-left leading-snug">
                                                           <span className="break-words align-baseline">
