@@ -21,7 +21,7 @@ const CountSlot: React.FC<CountSlotProps> = ({ value, onSave, className = "", is
   const hasValue = value > 0;
   
   return (
-    <span className={`flex items-center gap-0.5 ${className}`}>
+    <span className={`inline-flex items-center gap-0.5 align-baseline ${className}`}>
       {hasValue && <span>(</span>}
       <EditableText 
         text={hasValue ? value.toLocaleString() : ""} 
@@ -686,19 +686,34 @@ function App() {
                                 <div key={section.id} className="border border-[#8aa6c8] rounded-lg p-4 pt-8 relative group/section bg-white h-full">
                                     
                                     {/* Section Title */}
-                                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-[#445b8f] text-white text-sm font-medium px-4 py-1.5 rounded shadow-sm z-10 whitespace-nowrap flex items-center gap-1">
-                                    <EditableText 
-                                        text={section.title} 
-                                        onSave={(val) => updateSectionTitle(column.id, section.id, val)}
-                                    />
-                                    <CountSlot 
-                                      value={sectionSum}
-                                      onSave={(val) => updateSectionCountOverride(column.id, section.id, val)}
-                                      isOverridden={isSectionOverridden}
-                                    />
+                                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-[#445b8f] text-white text-sm font-medium px-4 py-1.5 rounded shadow-sm z-10 whitespace-nowrap flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
+                                      <EditableText 
+                                          text={section.title} 
+                                          onSave={(val) => updateSectionTitle(column.id, section.id, val)}
+                                      />
+                                      <CountSlot 
+                                        value={sectionSum}
+                                        onSave={(val) => updateSectionCountOverride(column.id, section.id, val)}
+                                        isOverridden={isSectionOverridden}
+                                      />
+                                    </div>
+                                    
+                                    {/* Delete Button moved here */}
+                                    <div 
+                                      className="bg-white rounded-full p-1 cursor-pointer text-red-500 hover:bg-red-50 opacity-0 group-hover/section:opacity-100 transition-all shadow-sm flex items-center justify-center no-export"
+                                      style={{ width: 20, height: 20 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteSection(column.id, section.id);
+                                      }}
+                                      title="Delete Group"
+                                    >
+                                      <Icons.Trash size={12} />
+                                    </div>
                                     </div>
 
-                                    {/* Action Buttons (Delete & Toggle Layout) */}
+                                    {/* Action Buttons (Layout Toggle) */}
                                     <div 
                                       className="absolute -top-3 right-4 z-50 opacity-0 group-hover/section:opacity-100 transition-opacity flex items-center gap-1"
                                     >
@@ -715,17 +730,6 @@ function App() {
                                           {isCentered ? <Icons.Grid size={18} /> : <Icons.AlignCenter size={18} />}
                                        </div>
                                        )}
-
-                                       {/* Delete */}
-                                       <div className="bg-white rounded-full shadow-sm p-1 border border-red-100 hover:bg-red-50 cursor-pointer text-red-400 hover:text-red-600"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              deleteSection(column.id, section.id);
-                                            }}
-                                            title="Delete Group"
-                                       >
-                                          <Icons.Trash size={18} />
-                                       </div>
                                     </div>
 
                                     {/* Categories Layout */}
@@ -734,7 +738,7 @@ function App() {
                                           ? 'flex flex-col items-center gap-4' // STACK MODE if single
                                           : isCentered
                                             ? 'flex flex-wrap justify-center gap-4' 
-                                            : `grid gap-4 ${layout === 'horizontal' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`
+                                            : `grid gap-4 ${layout === 'horizontal' ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 lg:grid-cols-3'}`
                                         }
                                     `}>
                                     {section.categories.map((category) => {
@@ -747,17 +751,18 @@ function App() {
                                             ${isCentered ? 'w-[calc(50%-0.5rem)]' : ''}
                                         `}>
                                             {/* Category Header */}
-                                            <div className="bg-[#618cc7] text-white px-3 py-1.5 text-sm font-medium text-center relative min-h-[32px] flex items-center justify-center gap-1">
+                                            <div className="bg-[#618cc7] text-white px-3 py-2 text-sm font-medium text-center relative h-auto flex items-center justify-center gap-1 leading-snug break-words">
                                                 <EditableText 
                                                     text={category.title} 
                                                     onSave={(val) => updateCategoryTitle(column.id, section.id, category.id, val)}
                                                     multiline={true}
-                                                    className="hover:bg-white/20 text-center block leading-tight"
+                                                    className="hover:bg-white/20 text-center block"
                                                 />
                                                 <CountSlot 
                                                   value={catSum}
                                                   onSave={(val) => updateCategoryCountOverride(column.id, section.id, category.id, val)}
                                                   isOverridden={isCatOverridden}
+                                                  className="whitespace-nowrap"
                                                 />
                                                 <div className="absolute right-1 top-1 opacity-0 group-hover/card:opacity-100 flex gap-1 bg-[#618cc7]">
                                                     <IconButton 
@@ -769,28 +774,30 @@ function App() {
                                             </div>
                                             
                                             {/* Items */}
-                                            <div className="bg-white p-2 flex-1 min-h-[50px] flex flex-col gap-1.5">
+                                            <div className="bg-white p-2 flex-1 min-h-[50px] flex flex-col gap-2">
                                                 {category.items.map((item) => {
                                                     const { name, count } = parseItemString(item.text);
 
                                                     return (
-                                                    <div key={item.id} className="border border-gray-100 rounded px-2 py-1 text-xs text-gray-700 bg-gray-50 flex justify-between items-center group/item hover:border-blue-200">
-                                                      <div className="flex-1 flex items-center flex-wrap gap-x-1 break-words">
-                                                        <EditableText 
-                                                            text={name} 
-                                                            onSave={(val) => updateItemName(column.id, section.id, category.id, item.id, val)}
-                                                            className="break-all"
-                                                            multiline={true}
-                                                        />
-                                                        <CountSlot 
-                                                          value={count}
-                                                          onSave={(val) => updateItemCount(column.id, section.id, category.id, item.id, val)}
-                                                          className="text-gray-500"
-                                                        />
+                                                    <div key={item.id} className="border border-gray-100 rounded px-2 py-1.5 text-xs text-gray-700 bg-gray-50 flex items-start justify-between gap-1 group/item hover:border-blue-200">
+                                                      <div className="flex-1 min-w-0 text-left leading-snug">
+                                                          <span className="break-words align-baseline">
+                                                            <EditableText 
+                                                                text={name} 
+                                                                onSave={(val) => updateItemName(column.id, section.id, category.id, item.id, val)}
+                                                                className="inline"
+                                                                multiline={true}
+                                                            />
+                                                          </span>
+                                                          <CountSlot 
+                                                            value={count}
+                                                            onSave={(val) => updateItemCount(column.id, section.id, category.id, item.id, val)}
+                                                            className="text-gray-500 inline-block ml-1 align-baseline"
+                                                          />
                                                       </div>
                                                       <IconButton 
                                                           icon={Icons.Trash} 
-                                                          className="opacity-0 group-hover/item:opacity-100 scale-75 flex-shrink-0 ml-1"
+                                                          className="opacity-0 group-hover/item:opacity-100 scale-75 flex-shrink-0 mt-0.5"
                                                           variant="danger"
                                                           onClick={() => deleteItem(column.id, section.id, category.id, item.id)}
                                                       />
