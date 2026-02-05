@@ -8,8 +8,6 @@ import { INITIAL_DATA, generateId } from './constants';
 import { IndustryMapData, ColumnData, Section, Category, Item } from './types';
 
 // --- Helper Component for Counts ---
-// This component handles the requirement: 
-// "If 0, hide parentheses and number, but keep area editable. If >0, show ( Number )"
 interface CountSlotProps {
   value: number;
   onSave: (val: string) => void;
@@ -26,8 +24,7 @@ const CountSlot: React.FC<CountSlotProps> = ({ value, onSave, className = "", is
       <EditableText 
         text={hasValue ? value.toLocaleString() : ""} 
         onSave={onSave}
-        placeholder="" // No text placeholder to keep it clean
-        // If no value, give it a min-width so it's clickable, otherwise auto width
+        placeholder=""
         className={`
           text-center transition-all
           ${hasValue ? 'min-w-[10px]' : 'min-w-[12px] h-4 inline-block hover:bg-blue-100/50 cursor-text'}
@@ -42,13 +39,13 @@ const CountSlot: React.FC<CountSlotProps> = ({ value, onSave, className = "", is
 function App() {
   const [data, setData] = useState<IndustryMapData>(INITIAL_DATA);
   const [layout, setLayout] = useState<'horizontal' | 'vertical'>('horizontal');
+  // Global Layout State
+  const [globalCategoryLayout, setGlobalCategoryLayout] = useState<'single' | 'double'>('double');
   const [isImportOpen, setIsImportOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // --- Helpers for Formatting ---
-  
-  // Splits "Product Name (1,000)" into { name: "Product Name", count: 1000 }
   const parseItemString = (str: string): { name: string; count: number } => {
     const match = str.match(/^(.*)\(([\d,]+)\)\s*$/);
     if (match) {
@@ -57,11 +54,9 @@ function App() {
         count: parseInt(match[2].replace(/,/g, ''), 10)
       };
     }
-    // If no count pattern found, return string as name and count 0
     return { name: str, count: 0 };
   };
 
-  // Recombines { name, count } into "Product Name (1,000)" or "Product Name" if 0
   const constructItemString = (name: string, count: number): string => {
     if (count > 0) {
       return `${name.trim()} (${count.toLocaleString()})`;
@@ -70,17 +65,12 @@ function App() {
   };
 
   // --- Handlers for Data Mutation ---
-
   const updateGlobal = (key: keyof IndustryMapData, value: string) => {
     setData(prev => ({ ...prev, [key]: value }));
   };
 
-  // NEW: Update Global Override Count
   const updateGlobalCountOverride = (newVal: string) => {
     const num = newVal.trim() === '' ? undefined : parseInt(newVal.replace(/,/g, ''), 10);
-    const finalVal = (num === undefined || isNaN(num)) ? undefined : num; // If user clears or enters invalid, revert to undefined (auto calc)
-    // If user explicitly types '0', we set it to 0.
-
     setData(prev => ({
       ...prev,
       overrideCount: isNaN(parseInt(newVal.replace(/,/g, ''), 10)) && newVal !== '0' ? undefined : parseInt(newVal.replace(/,/g, ''), 10)
@@ -94,7 +84,7 @@ function App() {
         if (col.id === colId) {
           return {
             ...col,
-            sections: [...col.sections, { id: generateId(), title: "New Group", categories: [], layoutMode: 'grid' }]
+            sections: [...col.sections, { id: generateId(), title: "New Group", categories: [], colMode: undefined }]
           };
         }
         return col;
@@ -135,7 +125,6 @@ function App() {
 
   const updateSectionCountOverride = (colId: string, secId: string, newVal: string) => {
     const num = newVal.trim() === '' ? undefined : parseInt(newVal.replace(/,/g, ''), 10);
-    
     setData(prev => ({
       ...prev,
       columns: prev.columns.map(col => {
@@ -150,8 +139,8 @@ function App() {
     }));
   };
 
-  // Toggle layout mode for a section (Grid vs Centered)
-  const toggleSectionLayout = (colId: string, secId: string) => {
+  // NEW: Update Section specific column mode
+  const updateSectionColMode = (colId: string, secId: string, mode: '1col' | '2col') => {
     setData(prev => ({
       ...prev,
       columns: prev.columns.map(col => {
@@ -160,8 +149,7 @@ function App() {
             ...col,
             sections: col.sections.map(s => {
                if (s.id === secId) {
-                 const currentMode = s.layoutMode || 'grid';
-                 return { ...s, layoutMode: currentMode === 'grid' ? 'centered' : 'grid' };
+                 return { ...s, colMode: mode };
                }
                return s;
             })
@@ -200,22 +188,15 @@ function App() {
       ...prev,
       columns: prev.columns.map(col => {
         if (col.id !== colId) return col;
-
-        // Find the section to see if this is the last category
         const sectionIndex = col.sections.findIndex(s => s.id === secId);
         if (sectionIndex === -1) return col;
-
         const section = col.sections[sectionIndex];
-        
-        // If this is the ONLY category in the group, delete the group entirely
         if (section.categories.length === 1 && section.categories[0].id === catId) {
             return {
                 ...col,
                 sections: col.sections.filter(s => s.id !== secId)
             };
         }
-
-        // Otherwise just remove the category
         return {
           ...col,
           sections: col.sections.map(s => {
@@ -233,14 +214,11 @@ function App() {
   };
 
   const updateCategoryTitle = (colId: string, secId: string, catId: string, newTitle: string) => {
-    // Logic: If title is cleared AND it's the only category in the group, delete the group.
     if (newTitle.trim() === '') {
         setData(prev => {
             const col = prev.columns.find(c => c.id === colId);
             const section = col?.sections.find(s => s.id === secId);
-            
             if (section && section.categories.length === 1 && section.categories[0].id === catId) {
-                // Delete the section
                 return {
                     ...prev,
                     columns: prev.columns.map(c => {
@@ -252,8 +230,6 @@ function App() {
                     })
                 };
             }
-            
-            // Fallthrough to normal update if not the last one (or logic dictates keeping empty title)
              return {
                 ...prev,
                 columns: prev.columns.map(col => {
@@ -278,7 +254,6 @@ function App() {
         return;
     }
 
-    // Normal Update
     setData(prev => ({
       ...prev,
       columns: prev.columns.map(col => {
@@ -303,7 +278,6 @@ function App() {
 
   const updateCategoryCountOverride = (colId: string, secId: string, catId: string, newVal: string) => {
     const num = newVal.trim() === '' ? undefined : parseInt(newVal.replace(/,/g, ''), 10);
-
     setData(prev => ({
       ...prev,
       columns: prev.columns.map(col => {
@@ -388,7 +362,6 @@ function App() {
     }));
   };
 
-  // Helper to update item logic
   const updateItemInternal = (colId: string, secId: string, catId: string, itemId: string, updater: (oldText: string) => string) => {
     setData(prev => ({
       ...prev,
@@ -435,8 +408,6 @@ function App() {
     });
   };
 
-
-  // --- Calculation Helpers ---
   const extractNumber = (text: string): number => {
     const { count } = parseItemString(text);
     return count;
@@ -459,10 +430,8 @@ function App() {
     , 0);
   };
 
-  // --- Import Parsing Logic ---
   const handleImportData = (rows: string[][]) => {
     if (!rows || rows.length < 2) return;
-
     const newColumns: ColumnData[] = [
       { id: 'upstream', title: '上游', colorTheme: 'blue', sections: [] },
       { id: 'midstream', title: '中游', colorTheme: 'blue', sections: [] },
@@ -475,7 +444,6 @@ function App() {
 
     rows.forEach((row) => {
       if (row.every(cell => !cell)) return;
-
       const colTypeRaw = row[0] || lastColType;
       const sectionTitle = row[1] || lastSectionTitle;
       const categoryTitle = row[2] || lastCategoryTitle;
@@ -492,23 +460,18 @@ function App() {
       else if (colTypeRaw.includes('下游')) colId = 'downstream';
 
       if (!colId || !sectionTitle) return;
-
       const column = newColumns.find(c => c.id === colId)!;
-      
       let section = column.sections.find(s => s.title === sectionTitle);
       if (!section) {
-        // Default new imported sections to grid mode
-        section = { id: generateId(), title: sectionTitle, categories: [], layoutMode: 'grid' };
+        section = { id: generateId(), title: sectionTitle, categories: [], colMode: undefined };
         column.sections.push(section);
       }
-
       if (!categoryTitle) return;
       let category = section.categories.find(c => c.title === categoryTitle);
       if (!category) {
         category = { id: generateId(), title: categoryTitle, items: [] };
         section.categories.push(category);
       }
-
       if (product) {
         let itemText = product;
         let num = 0;
@@ -521,13 +484,9 @@ function App() {
       }
     });
 
-    setData({
-      ...data,
-      columns: newColumns
-    });
+    setData({ ...data, columns: newColumns });
   };
 
-  // --- Export Functionality ---
   const handleExport = useCallback(async () => {
     if (mapRef.current) {
       setIsExporting(true);
@@ -544,7 +503,6 @@ function App() {
              return !node.classList?.contains('no-export');
            },
            onClone: (clonedNode) => {
-             // Find all manually overridden numbers and reset their styles to match automatic numbers
              const overrides = clonedNode.querySelectorAll('.manual-override-number');
              overrides.forEach((el) => {
                el.classList.remove('text-blue-200');
@@ -564,6 +522,13 @@ function App() {
 
   const globalTotal = getGlobalSum();
 
+  // Helper to determine effective layout for a section
+  const getEffectiveColMode = (section: Section): 'single' | 'double' => {
+     if (section.colMode === '1col') return 'single';
+     if (section.colMode === '2col') return 'double';
+     return globalCategoryLayout;
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center py-8 bg-slate-50">
       
@@ -580,6 +545,8 @@ function App() {
              Industry Graph Builder
            </h1>
            <div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>
+           
+           {/* Global Layout (Horizontal/Vertical) */}
            <div className="flex bg-gray-100 p-1 rounded-lg">
               <button 
                 onClick={() => setLayout('horizontal')}
@@ -594,6 +561,24 @@ function App() {
                 title="Portrait (Vertical A3)"
               >
                 <Icons.Layout size={14} /> 竖版
+              </button>
+           </div>
+
+           {/* Category Density (Single/Double Column) */}
+           <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button 
+                onClick={() => setGlobalCategoryLayout('single')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 ${globalCategoryLayout === 'single' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Global Single Column"
+              >
+                <Icons.List size={14} /> 全局单列
+              </button>
+              <button 
+                onClick={() => setGlobalCategoryLayout('double')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 ${globalCategoryLayout === 'double' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Global Double Column"
+              >
+                <Icons.Columns size={14} /> 全局双列
               </button>
            </div>
          </div>
@@ -622,11 +607,12 @@ function App() {
 
       <div className="h-16 w-full" />
 
-      {/* --- Main Canvas --- */}
-      <div className="w-full max-w-[1800px] overflow-x-auto p-8 flex justify-center">
+      {/* --- Main Canvas Container --- */}
+      {/* Removed flex justify-center to avoid clipping left side on overflow. Added block and scroll. */}
+      <div className="w-full max-w-[100vw] overflow-x-auto p-8 block">
         <div 
            ref={mapRef} 
-           className={`bg-white p-8 border border-gray-100 shadow-xl rounded-xl relative transition-all duration-300 ${
+           className={`bg-white p-8 border border-gray-100 shadow-xl rounded-xl relative transition-all duration-300 mx-auto ${
              layout === 'horizontal' 
                ? 'min-w-[1400px] w-[1400px]' 
                : 'min-w-[1000px] w-[1000px]'
@@ -678,9 +664,12 @@ function App() {
                                 const sectionSum = getSectionSum(section);
                                 const isSectionOverridden = section.overrideCount !== undefined;
                                 
-                                const isSingle = section.categories.length === 1;
-                                // Force centered if single category, otherwise obey layoutMode
-                                const isCentered = section.layoutMode === 'centered' || isSingle;
+                                const effectiveMode = getEffectiveColMode(section);
+                                const isSingle = effectiveMode === 'single';
+
+                                // Determine active styles for the toggle buttons
+                                const btnActive = "text-blue-600 bg-blue-100 border-blue-200";
+                                const btnInactive = "text-gray-400 hover:text-gray-600 hover:bg-gray-100 border-transparent";
                                 
                                 return (
                                 <div key={section.id} className="border border-[#8aa6c8] rounded-lg p-4 pt-8 relative group/section bg-white h-full">
@@ -699,7 +688,6 @@ function App() {
                                       />
                                     </div>
                                     
-                                    {/* Delete Button moved here */}
                                     <div 
                                       className="bg-white rounded-full p-1 cursor-pointer text-red-500 hover:bg-red-50 opacity-0 group-hover/section:opacity-100 transition-all shadow-sm flex items-center justify-center no-export"
                                       style={{ width: 20, height: 20 }}
@@ -713,42 +701,62 @@ function App() {
                                     </div>
                                     </div>
 
-                                    {/* Action Buttons (Layout Toggle) */}
+                                    {/* Action Buttons (Layout Toggle) - Always visible now */}
                                     <div 
-                                      className="absolute -top-3 right-4 z-50 opacity-0 group-hover/section:opacity-100 transition-opacity flex items-center gap-1"
+                                      className="absolute -top-3 right-4 z-50 flex items-center gap-1 bg-white rounded-md shadow-sm border border-gray-100 p-0.5"
                                     >
-                                       {/* Layout Toggle - Only show if more than 1 category */}
-                                       {!isSingle && (
-                                       <div 
-                                          className="bg-white rounded-full shadow-sm p-1 border border-blue-100 hover:bg-blue-50 cursor-pointer text-blue-400 hover:text-blue-600"
-                                          title={isCentered ? "Switch to Grid View" : "Switch to Centered View"}
+                                       <button
+                                          className={`p-1 rounded ${section.colMode === '1col' ? btnActive : btnInactive}`}
+                                          title="Force Single Column"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            toggleSectionLayout(column.id, section.id);
+                                            updateSectionColMode(column.id, section.id, '1col');
                                           }}
                                        >
-                                          {isCentered ? <Icons.Grid size={18} /> : <Icons.AlignCenter size={18} />}
-                                       </div>
+                                          <Icons.List size={14} />
+                                       </button>
+                                       <button
+                                          className={`p-1 rounded ${section.colMode === '2col' ? btnActive : btnInactive}`}
+                                          title="Force Double Column"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateSectionColMode(column.id, section.id, '2col');
+                                          }}
+                                       >
+                                          <Icons.Columns size={14} />
+                                       </button>
+                                       {section.colMode && (
+                                           <button 
+                                            className="p-1 text-xs text-gray-400 hover:text-red-500 border-l ml-1 pl-1"
+                                            title="Clear manual override (Auto)"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    columns: prev.columns.map(c => c.id === column.id ? {
+                                                        ...c,
+                                                        sections: c.sections.map(s => s.id === section.id ? { ...s, colMode: undefined } : s)
+                                                    } : c)
+                                                }));
+                                            }}
+                                           >
+                                            <Icons.Undo size={12} />
+                                           </button>
                                        )}
                                     </div>
 
                                     {/* Categories Layout */}
-                                    <div className={`
-                                        ${isSingle 
-                                          ? 'flex flex-col items-center gap-4' // STACK MODE if single
-                                          : isCentered
-                                            ? 'flex flex-wrap justify-center gap-4' 
-                                            : `grid gap-4 ${layout === 'horizontal' ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 lg:grid-cols-3'}`
-                                        }
-                                    `}>
+                                    <div className="flex flex-wrap gap-4 justify-center">
                                     {section.categories.map((category) => {
                                         const catSum = getCategorySum(category);
                                         const isCatOverridden = category.overrideCount !== undefined;
 
                                         return (
-                                        <div key={category.id} className={`
-                                            border border-blue-200 rounded overflow-hidden flex flex-col group/card shadow-sm hover:shadow-md transition-shadow
-                                            ${isCentered ? 'w-[calc(50%-0.5rem)]' : ''}
+                                        <div key={category.id + '-' + effectiveMode} 
+                                            className={`
+                                            border border-blue-200 rounded flex flex-col group/card shadow-sm hover:shadow-md transition-shadow bg-white relative
+                                            resize-both overflow-auto min-w-[200px] min-h-[100px]
+                                            ${isSingle ? 'w-full' : 'w-[calc(50%-0.5rem)]'}
                                         `}>
                                             {/* Category Header */}
                                             <div className="bg-[#618cc7] text-white px-3 py-2 text-sm font-medium text-center relative h-auto flex items-center justify-center gap-1 leading-snug break-words">
@@ -779,7 +787,9 @@ function App() {
                                                     const { name, count } = parseItemString(item.text);
 
                                                     return (
-                                                    <div key={item.id} className="border border-gray-100 rounded px-2 py-1.5 text-xs text-gray-700 bg-gray-50 flex items-start justify-between gap-1 group/item hover:border-blue-200">
+                                                    <div key={item.id} 
+                                                        className="border border-gray-100 rounded px-2 py-1.5 text-xs text-gray-700 bg-gray-50 flex items-start justify-between gap-1 group/item hover:border-blue-200 resize-both overflow-auto min-h-[32px] w-full"
+                                                    >
                                                       <div className="flex-1 min-w-0 text-left leading-snug">
                                                           <span className="break-words align-baseline">
                                                             <EditableText 
@@ -819,7 +829,7 @@ function App() {
                                         onClick={() => addCategory(column.id, section.id)}
                                         className={`
                                             border border-dashed border-blue-300 rounded flex items-center justify-center p-4 text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors min-h-[100px] no-export
-                                            ${isCentered ? 'w-[calc(50%-0.5rem)]' : ''}
+                                            ${isSingle ? 'w-full' : 'w-[calc(50%-0.5rem)]'}
                                         `}
                                     >
                                         <div className="flex flex-col items-center gap-1">

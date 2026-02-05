@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Download, RefreshCw, Undo, MapPin, ChevronLeft, Table, Layout, ArrowRight, Grid, AlignCenter } from 'lucide-react';
+import { Plus, Trash2, Download, RefreshCw, Undo, MapPin, ChevronLeft, Table, Layout, ArrowRight, Grid, AlignCenter, List, Columns } from 'lucide-react';
 
 export const Icons = {
   Plus,
@@ -13,7 +13,9 @@ export const Icons = {
   Layout,
   ArrowRight,
   Grid,
-  AlignCenter
+  AlignCenter,
+  List,
+  Columns
 };
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

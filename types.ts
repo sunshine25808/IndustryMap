@@ -1,3 +1,4 @@
+
 export interface Item {
   id: string;
   text: string;
@@ -15,7 +16,8 @@ export interface Section {
   title: string;
   categories: Category[];
   overrideCount?: number;
-  layoutMode?: 'grid' | 'centered'; // 'grid' (double column) or 'centered'
+  layoutMode?: 'grid' | 'centered'; // Deprecated in favor of colMode, but kept for compatibility
+  colMode?: '1col' | '2col'; // '1col' | '2col'. If undefined, follows global setting.
 }
 
 export interface ColumnData {
